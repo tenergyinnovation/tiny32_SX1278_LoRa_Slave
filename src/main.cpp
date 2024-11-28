@@ -3,9 +3,11 @@
  * Description  :     Example code tiny32 board interface with SX1278 to be LoRa Client
  * Hardware     :     tiny32_v3
  * Author       :     Tenergy Innovation Co., Ltd.
- * Date         :     04/07/2022
- * Revision     :     1.0
+ * Date         :     28/11/2024
+ * Revision     :     1.1
  * Rev1.0       :     Origital
+ * Rev1.1       :    - Repeat send data to LoRa Gateway N times
+ *                   - Ignore DIO0 pin
  * website      :     http://www.tenergyinnovation.co.th
  * Email        :     uten.boonliam@tenergyinnovation.co.th
  * TEL          :     +66 89-140-7205
@@ -20,9 +22,9 @@
 /**************************************/
 /*          Firmware Version          */
 /**************************************/
-#define FIRMWARE_VERSION "0.1"
+#define FIRMWARE_VERSION "1.1"
 #define TOPIC "lora_topc"
-
+#define lora_repeatsend_time 3 //จำนวนครั้งที่ส่งซ้ำไปยัง LoRa gateway เพื่อไม่ให้พลาดการรับข้อมูล
 /**************************************/
 /*          Header project            */
 /**************************************/
@@ -55,7 +57,8 @@ tiny32_v3 mcu;
 #define MOSI 19
 #define SS 5
 #define RST 26
-#define DIO0 27
+#define DIO0 -1
+// #define DIO0 27  //ignor
 
 /**************************************/
 /*           Bandwidth  define        */
@@ -221,14 +224,18 @@ void sendMessage(String outgoing)
         return;
     }
 
-    LoRa.beginPacket();            // start packet
-    LoRa.write(LoRa_ID_Gateway);   // add destination address
-    LoRa.write(LoRa_ID_local);     // add sender address
-    LoRa.write(msgCount);          // add message ID
-    LoRa.write(outgoing.length()); // add payload length
-    LoRa.print(outgoing);          // add payload
-    LoRa.endPacket();              // finish packet and send it
-    msgCount++;                    // increment message ID
+    for (int i = 0; i < lora_repeatsend_time; i++) // Repeat send data to LoRa Gateway N times
+    {
+        LoRa.beginPacket();            // start packet
+        LoRa.write(LoRa_ID_Gateway);   // add destination address
+        LoRa.write(LoRa_ID_local);     // add sender address
+        LoRa.write(msgCount);          // add message ID
+        LoRa.write(outgoing.length()); // add payload length
+        LoRa.print(outgoing);          // add payload
+        LoRa.endPacket();              // finish packet and send it
+        vTaskDelay(300);
+    }
+    msgCount++; // increment message ID
     if (msgCount >= 100)
         msgCount = 0;
 }
